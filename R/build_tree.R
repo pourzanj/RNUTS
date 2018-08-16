@@ -1,4 +1,4 @@
-create_onenode_hist <- function(z, depth, H, invalid) {
+create_onenode_hist <- function(z, depth, H, invalid, num_newton, num_grad) {
 
   if(!is.character(invalid)) {
     invalid <- as.character(NA)
@@ -8,21 +8,23 @@ create_onenode_hist <- function(z, depth, H, invalid) {
   p <- matrix(z$p, nrow = 1) %>% as_tibble %>% set_names(paste0("p",1:D))
 
   tibble(depth = depth, H = H, invalid = invalid) %>%
+    mutate(num_newton = num_newton, num_grad = num_newton) %>%
     bind_cols(bind_cols(q, p))
 }
 
 # use this function to create trees to make sure all trees have the same entries with the same names
-create_onenode_tree <- function(depth, invalid, z, ham_system, DEBUG) {
+create_onenode_tree <- function(depth, invalid, z, ham_system, num_newton = NA, num_grad = NA, DEBUG) {
 
   H <- ham_system$compute_H(z)
 
   hist <- NULL
   if (DEBUG) {
-    hist <- create_onenode_hist(z, depth, H, invalid)
+    hist <- create_onenode_hist(z, depth, H, invalid, num_newton, num_grad)
   }
 
   list(depth = depth,
        invalid = !is.na(invalid),
+       coordinate_uturn = rep(FALSE, length(z$q)),
        log_w = -H,
        z_rep = z,
        z_minus = z,
@@ -146,7 +148,9 @@ join_subtrees <- function(inner_subtree, outer_subtree, direction, DEBUG) {
   # check to see if new joined tree is valid. This only happens if both subtrees
   # are valid and if the u-turn criteria is met between z_plus and z_minus
   both_subtrees_valid <- !inner_subtree$invalid & !outer_subtree$invalid
+  tree$coordinate_uturn <- update_coordinate_uturn(tree, system)
   nouturn_criteria_met <- check_uturn_criteria(tree, system)
+  #nouturn_criteria_met <- !all(tree$coordinate_uturn)
 
   if(both_subtrees_valid & nouturn_criteria_met) {
     tree$invalid = FALSE
@@ -229,10 +233,9 @@ sample_new_representative <- function(inner_subtree, outer_subtree) {
   new_z_rep
 }
 
-#' Title
+#' Check that there's NO U-Turns
 #'
-#' Make sure that if we go forward we won't U-Turn and if we go backward
-#' we won't U-Turn.
+#' Returns true if there's no U-Turn in either direction
 #'
 #' @param tree
 #' @param ham_system
@@ -257,7 +260,35 @@ check_uturn_criteria <- function(tree, ham_system) {
 }
 
 
+#' Check for U-Turns at the coordinate level
+#'
+#' In each coordinate q(t)-q(0) tells us whether we've gone in the negative or
+#' or positive direction. If we multiuply that by p(t) for that dimension we get
+#' whether we're U-Turning specifically in that dimension. We keep track of this because
+#' it may be a good U-Turn criteria to check that ALL dimensions have U-Turned
+#'
+#' @param tree
+#' @param ham_system
+#'
+#' @return
+#' @export
+#'
+#' @examples
+update_coordinate_uturn <- function(tree, ham_system) {
 
+  q_plus <- tree$z_plus$q
+  q_minus <- tree$z_minus$q
+
+  # instead of momentums get velocities by multipling by M^{-1}
+  v_plus <- (1/M)*tree$z_plus$p
+  v_minus <- (1/M)*tree$z_minus$p
+
+  # this is a vector that is true if that dimension U-Turned
+  coordinate_uturns_forward <- (v_plus*(q_plus-q_minus) < 0)
+  coordinate_uturns_backward <- (-v_minus*(q_minus-q_plus) < 0)
+
+  tree$coordinate_uturn | coordinate_uturns_forward | coordinate_uturns_backward
+}
 
 
 

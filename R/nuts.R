@@ -14,51 +14,39 @@ create_hamiltonian_system <- function(M, compute_U, compute_gradU) {
 
 }
 
-get_nuts_samples <- function(num_samples, U, GradU, q0, h0, Sigma, implicit = FALSE, uturn_criteria, min_DeltaH, DEBUG = FALSE) {
+get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, DEBUG = FALSE) {
 
   D <- length(q0)
   q <- matrix(NA, nrow = num_samples+1, ncol = D)
 
-  chol_Sigma <- chol(Sigma)
-
   q[1,] <- q0
 
-  if(DEBUG) {
+  lf <- create_integrator(is_implicit = FALSE)
+  im <- create_integrator(is_implicit = TRUE)
 
-    tree.depth <- rep(0, num_samples+1)
-    total.grad.evals <- rep(0, num_samples+1)
-    accepted <- rep(TRUE, num_samples+1)
-    divergent <- rep(FALSE, num_samples+1)
-    newton.failure <- rep(FALSE, num_samples+1)
-    hist <- list(NA)
+  tree_depth <- rep(0, num_samples+1)
+  total_grad_evals <- rep(0, num_samples+1)
+  no_error <- rep(TRUE, num_samples+1)
+  hist <- list(NA)
 
-    for(iter in 1:num_samples){
-      nuts <- NUTS_one_step(U, GradU, q[iter,], p0 = NULL, h0, chol_Sigma, implicit, uturn_criteria, min_DeltaH, max_treedepth = 10, DEBUG = TRUE)
-      q[iter+1,] <- nuts$q
-      tree.depth[iter+1] <- nuts$hist %>% pull(depth) %>% max(na.rm = TRUE)
-      total.grad.evals[iter+1] <- nuts$hist %>% pull(NumGradEval) %>% sum(na.rm = TRUE)
-      accepted[iter+1] <- ifelse(sum(as.vector(nuts$q) == q[iter,]), FALSE, TRUE)
-      divergent[iter+1] <- (nuts$hist %>% pull(divergent) %>% sum(na.rm = TRUE) >= 1)
-      newton.failure[iter+1] <- (nuts$hist %>% pull(newton.failure) %>% sum(na.rm = TRUE) >= 1)
-      hist <- c(hist, list(nuts$hist))
-    }
+  for(iter in 1:num_samples){
 
-    return(samples = as_tibble(q) %>% set_names(paste0("q",1:D)) %>%
-             mutate(tree.depth = tree.depth, total.grad.evals = total.grad.evals, accepted = accepted,
-                    divergent = divergent, newton.failure = newton.failure) %>%
-             mutate(hist =hist))
 
-  } else {
-    for(iter in 1:num_samples){
+    sample <- get_single_nuts_sample(as.vector(q[iter,]), p0 = NULL, h0, ham_system, integrator, max_treedepth = 10, DEBUG)
+    q[iter+1,] <- sample$q
 
-      nuts <- NUTS_one_step(U, GradU, q[iter,], p0 = NULL, h0, chol_Sigma, implicit, uturn_criteria, min_DeltaH, max_treedepth = 10, DEBUG = FALSE)
-      q[iter+1,] <- nuts$q
-
-    }
-
-    return(as_tibble(q) %>% set_names(paste0("q",1:D)))
+    tree_depth[iter+1] <- sample$hist %>% pull(depth) %>% max(na.rm = TRUE)
+    total_grad_evals[iter+1] <- sample$hist %>% pull(num_grad) %>% sum(na.rm = TRUE)
+    no_error[iter+1] <- (sample$hist$invalid == "U-Turn") %>% all(na.rm = TRUE)
+    hist <- c(hist, list(sample$hist))
   }
 
+  as_tibble(q) %>%
+    set_names(paste0("q",1:D)) %>%
+    mutate(tree_depth = tree_depth,
+           total_grad_evals = total_grad_evals,
+           no_error = no_error) %>%
+    mutate(hist = hist)
 
 }
 
@@ -77,7 +65,7 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
 
   # sample momentum
   if (is.null(p0)) {
-    p0 <- ham_system$get_momentum_sample()
+    p0 <- as.vector(ham_system$get_momentum_sample())
   }
   z0 <- list(q = q0, p = p0, h = h0)
 
@@ -106,5 +94,5 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
     if (tree$invalid) break
   }
 
-  return(list(q = tree$z_rep, hist = tree$hist))
+  return(list(q = tree$z_rep$q, hist = tree$hist))
 }
