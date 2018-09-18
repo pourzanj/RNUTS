@@ -9,12 +9,6 @@ This repo contains all the code for our planned paper on Stiffness and using Imp
 - get Stan community interested enough to want to have midpoint and new warmup implemented in production (4)
 - eventually need to make decusion of whether paper should just be about midpoint or include warmup
 
-## R Code to do
-- get Ben's GMRES incorporated in the code
-- clean up code? ask Dan for advice on this. is it worth it?
-- should we do unit tests?
-- more documentation
-
 ### Adding Tests
 - since code is still kind of unstable it may only be worth it to run tests for outside code such as the GMRES solver
 - have a top level script that runs all tests and make sure it always works
@@ -50,8 +44,7 @@ This repo contains all the code for our planned paper on Stiffness and using Imp
     - if we use Explicit solver use the stepsize chosen by hessian eigenvalue NOT from nesterov optimization. this way we'll be less likely to have divergences
 
 ## Things to Discuss
-- getting in to Stan (Dan, Bob, and Bales)
+- getting in to Stan
 - how to test for correctness? just look at quantiles of posterior converging?
 - should numerical experiments showing correctness of samples be included in the paper? possibly in supplemtary material. showing that it's symplectic is enough
-- how should examples be done? my R code leapfrog vs midpoint
 - use stepsize and mass matrix Stan decides? TBD how to determine midpoint stepsize. show a plot of work/sample vs. stepsize
