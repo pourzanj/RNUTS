@@ -16,6 +16,39 @@ create_gaussian_hamiltonian_system <- function(M, Sigma) {
 
 create_funnel_hamiltonian_system <- function(M, D) {
 
+  compute_U <- function(q) {
+    y <- q[1]
+    x <- q[2:length(q)]
+    (y^2)/18 + y/2 + (x^2)/(2*exp(y))
+  }
+
+  compute_gradU <- function(q) {
+    y <- q[1]
+    x <- q[2:length(q)]
+    c(y/9 + 0.5 - (x^2)/(2*exp(y)), x*exp(-y))
+  }
+
+  compute_hessU_vec_prod <- function(q, v) {
+    y <- q[1]
+    x <- q[2:length(q)]
+
+    # arrow matrix
+    H <- diag(length(q))
+    diag(H) <- c(1/9 + (x^2)/(2*exp(y)), rep(exp(-y), length(q)-1))
+    H[2:length(q), 1] <- -x*exp(-y)
+    H[1,2:length(q)] <- -x*exp(-y)
+
+    as.vector(H %*% v)
+  }
+
+  D <- nrow(M)
+  L <- chol(M)
+
+  list(M = M,
+       compute_H = function(z) 0.5*sum(z$p*solve(M,z$p)) + compute_U(z$q),
+       compute_gradU = compute_gradU,
+       compute_hessU_vec_prod = compute_hessU_vec_prod,
+       get_momentum_sample = function() L %*% rnorm(D))
 }
 
 #' Title
@@ -31,15 +64,11 @@ create_funnel_hamiltonian_system <- function(M, D) {
 #' @examples
 create_custom_hamiltonian_system <- function(M, compute_U, compute_gradU, compute_hessU_vec_prod) {
 
-  if (is.matrix(M)) {
-    stop("Only diaganol mass matrices specified as vectors are supported as of now.")
-  }
-
   D <- length(M)
   L <- chol(M)
 
   list(M = M,
-       compute_H = function(z) (1/2)*sum(z$p*(1/M)*z$p) + compute_U(z$q),
+       compute_H = function(z) 0.5*sum(z$p*solve(M,z$p)) + compute_U(z$q),
        compute_gradU = compute_gradU,
        compute_hessU_vec_prod = compute_hessU_vec_prod,
        get_momentum_sample = function() L %*% rnorm(D))
