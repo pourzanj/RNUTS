@@ -1,3 +1,16 @@
+#' Title
+#'
+#' @param z
+#' @param depth
+#' @param H
+#' @param invalid
+#' @param num_newton
+#' @param num_grad
+#'
+#' @return
+#' @export
+#'
+#' @examples
 create_onenode_hist <- function(z, depth, H, invalid, num_newton, num_grad) {
 
   if(!is.character(invalid)) {
@@ -12,7 +25,22 @@ create_onenode_hist <- function(z, depth, H, invalid, num_newton, num_grad) {
     bind_cols(bind_cols(q, p))
 }
 
-# use this function to create trees to make sure all trees have the same entries with the same names
+#' Title
+#'
+#' use this function to create trees to make sure all trees have the same entries with the same names
+#'
+#' @param depth
+#' @param invalid
+#' @param z
+#' @param ham_system
+#' @param num_newton
+#' @param num_grad
+#' @param DEBUG
+#'
+#' @return
+#' @export
+#'
+#' @examples
 create_onenode_tree <- function(depth, invalid, z, ham_system, num_newton = NA, num_grad = NA, DEBUG) {
 
   H <- ham_system$compute_H(z)

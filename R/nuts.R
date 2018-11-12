@@ -1,20 +1,18 @@
-create_hamiltonian_system <- function(M, compute_U, compute_gradU) {
-
-  if (is.matrix(M)) {
-    stop("Only diaganol mass matrices specified as vectors are supported as of now.")
-  }
-
-  D <- length(M)
-  L <- chol(diag(M))
-
-  list(M = M,
-       compute_gradU = compute_gradU,
-       compute_H = function(z) (1/2)*sum(z$p*(1/M)*z$p) + compute_U(z$q),
-       get_momentum_sample = function() L %*% rnorm(D))
-
-}
-
-get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, DEBUG = FALSE) {
+#' Get multiple NUTS samples from a posterior
+#'
+#' @param num_samples
+#' @param q0
+#' @param h0
+#' @param ham_system
+#' @param integrator
+#' @param max_treedepth
+#' @param DEBUG
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, max_treedepth = 10, DEBUG = FALSE) {
 
   D <- length(q0)
   q <- matrix(NA, nrow = num_samples+1, ncol = D)
@@ -35,10 +33,12 @@ get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, DEBUG 
     sample <- get_single_nuts_sample(as.vector(q[iter,]), p0 = NULL, h0, ham_system, integrator, max_treedepth = 10, DEBUG)
     q[iter+1,] <- sample$q
 
+    if(DEBUG) {
     tree_depth[iter+1] <- sample$hist %>% pull(depth) %>% max(na.rm = TRUE)
     total_grad_evals[iter+1] <- sample$hist %>% pull(num_grad) %>% sum(na.rm = TRUE)
     no_error[iter+1] <- (sample$hist$invalid == "U-Turn") %>% all(na.rm = TRUE)
     hist <- c(hist, list(sample$hist))
+    }
   }
 
   as_tibble(q) %>%

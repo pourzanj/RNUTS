@@ -1,3 +1,11 @@
+#' Title
+#'
+#' @param is_implicit
+#'
+#' @return
+#' @export
+#'
+#' @examples
 create_integrator <- function(is_implicit) {
 
   # set integrator to either explicit or implicit
@@ -14,10 +22,9 @@ create_integrator <- function(is_implicit) {
     H <- ham_system$compute_H(result$z1)
 
     num_newton <- as.integer(NA)
-    num_grad <- as.integer(NA)
+    num_grad <- result$num_grad
     if (is_implicit) {
       num_newton <- result$num_newton
-      num_grad <- result$num_grad
     }
 
     create_onenode_tree(depth = 0,
@@ -85,7 +92,7 @@ take_one_step_im <- function(z0, z_1, direction, ham_system) {
   }
 
   newton.iter.soln <- newton_iteration(g, Jg, x0 = x0, TOL = 1e-13, max_iter = 100)
-  num_grad <- newton.iter.soln$num_grad + 1
+  num_grad <- newton.iter.soln$num_grad
   num_newton <- newton.iter.soln$num.newton.iters
   newton.converged <- newton.iter.soln$converged
 
@@ -122,12 +129,18 @@ newton_iteration <- function(g, Jg, x0, TOL = 1e-6, max_iter = 100) {
   too_slow_counter <- 0
   # browser()
   # print("~~~~~~~~~~~~~~~~~~~~~~")
+  eta <- 1e10
+  prev_error <- c(0,0)
+  prev_gmres_error <- c(0,0)
+  quadratic_error <- c(0,0)
   while(eps > TOL) {
     g.x1 <- g(x1)
+    # print(paste("Norm(g.new): ", Norm(g.x1)))
+    # print(paste("grads: ", grads))
     # print("~~~~~~~~~~~~~~~~~~~~~~")
     # print(paste("x1:", x1))
     # print(paste("Norm(g.x1): ", Norm(g.x1)))
-    browser()
+    # browser()
 
 
 
@@ -139,11 +152,21 @@ newton_iteration <- function(g, Jg, x0, TOL = 1e-6, max_iter = 100) {
     #delta <- solve(diag(diag(Jg(x1))),-g.x1)
     # delta <- -g.x1
 
-    #delta <- -g.x1
-    delta <- -c
-    if (close_enough) {
-      delta <- solve(Jg(x1),-g.x1)
-    }
+    # delta <- -g.x1
+    # delta <- -as.numeric(t(Jg(x1)) %*% g.x1)
+    # if (close_enough) {
+    #   print("switched to newton")
+    #   delta <- solve(Jg(x1),-g.x1)
+    # }
+
+    gmres_sol <- hessian_solve(x1, -g.x1, M, 2.0, rep(0.0, length(x1)), eta)
+    delta <- gmres_sol$x
+    prev_error <- Norm(g.x1)
+    grads <- grads + gmres_sol$iterations
+
+    # print("~~~~~~~~~~~~~~~~~~~~~~")
+    # print(paste("-g.x1/Norm(-g.x1)", -g.x1/Norm(-g.x1)))
+    # print(paste("delta/Norm(delta)", delta/Norm(delta)))
     # delta <- solve(Jg(x1),-g.x1)
     # jacobian_kept_delta <- all(sign(delta) == sign(-g.x1))
     # if (!jacobian_kept_delta) {
@@ -155,13 +178,14 @@ newton_iteration <- function(g, Jg, x0, TOL = 1e-6, max_iter = 100) {
 
     alpha <- 1
     line.search.iter <- 0
+    g.new <- g.x1
     for(i in 1:20) {
       line.search.iter <- line.search.iter + 1
 
       # if delta is ridiculously big don't bother calculating it because that will
       # trigger a Stan error
       if(Norm(alpha*delta) > (1e1*Norm(x1))) {
-        alpha <- alpha/10
+        alpha <- alpha/2
         next
       }
       g.new <- g(x1 + alpha*delta)
@@ -171,26 +195,29 @@ newton_iteration <- function(g, Jg, x0, TOL = 1e-6, max_iter = 100) {
       # print(paste("(1e2*Norm(x1)): ", (1e2*Norm(x1))))
       # print(paste("g.new: ", g.new))
       if(Norm(g.new) >  Norm(g.x1)) {
-        alpha <- alpha/10
+        alpha <- alpha/2
       } else {
         break
       }
       #if(line.search.iter >= 9) browser()
     }
+    # if (line.search.iter > 1) {
+    #   warning("had to line search")
+    # }
     # check if shrinking alpha actually reduces error further
-    for(i in 1:20) {
-        line.search.iter <- line.search.iter + 1
-
-        alpha_new <- alpha/2.0
-        g.new <- g(x1 + alpha*delta)
-        g.new.new <- g(x1 + alpha_new*delta)
-        if(Norm(g.new.new) <  Norm(g.new)) {
-          alpha <- alpha_new
-        } else {
-          break
-        }
-        #if(line.search.iter >= 9) browser()
-    }
+    # for(i in 1:20) {
+    #     line.search.iter <- line.search.iter + 1
+    #
+    #     alpha_new <- alpha/2.0
+    #     g.new <- g(x1 + alpha*delta)
+    #     g.new.new <- g(x1 + alpha_new*delta)
+    #     if(Norm(g.new.new) <  Norm(g.new)) {
+    #       alpha <- alpha_new
+    #     } else {
+    #       break
+    #     }
+    #     #if(line.search.iter >= 9) browser()
+    # }
 
     if (Norm(g.new)/Norm(g.x1) >= 0.9) {
       too_slow_counter <- too_slow_counter + 1
@@ -206,11 +233,17 @@ newton_iteration <- function(g, Jg, x0, TOL = 1e-6, max_iter = 100) {
     # print(paste("Norm(g.new)/Norm(g.x1): ", Norm(g.new)/Norm(g.x1)))
     # print(paste("too_slow_counter: ", too_slow_counter))
 
+    # this is for implementing 2.1 in eisenstat and walker
+    prev_gmres_error <- g.x1 + as.vector(Jg(x1) %*% (alpha*delta))
+    quadratic_error <- g(x1 + alpha*delta) - prev_gmres_error
+    eta <- Norm(quadratic_error) / Norm(g.x1)
+
     grads <- grads + line.search.iter
     x1 <- x1 + alpha*delta
     #eps <- delta^2 %>% sum %>% sqrt
     eps <- Norm(g(x1))
     #print(eps)
+
 
     iter <- iter + 1
     if(iter >= max_iter) {
@@ -231,6 +264,7 @@ impmid <- function(q0, p0, M, pos.first = TRUE, N, h) {
   p <- matrix(NA, nrow = N+1, ncol = D)
   omega <- rep(NA, N+1)
   num.newton.iters <- rep(NA, N+1)
+  num_grad <- rep(NA,N+1)
 
   q[1,] <- q0
   p[1,] <- p0
@@ -250,9 +284,10 @@ impmid <- function(q0, p0, M, pos.first = TRUE, N, h) {
       #   #browser()
       #   x0 <- ifelse(abs(q[n,]+q[n-1,])/abs(q[n,]) < 0.1, 0.0, q[n,])
       # }
-      newton.iter.soln <- newton_iteration(g, J, x0 = x0, TOL = 1e-13,  max_iter = 100)
+      newton.iter.soln <- newton_iteration(g, J, x0 = x0, TOL = 1e-13,  max_iter = 1000)
       #newton.iter.soln <- nleqslv(q[n,],g)
       num.newton.iters[n+1] <- newton.iter.soln$num.newton.iters
+      num_grad[n+1] <- newton.iter.soln$num_grad
       #num.newton.iters[n+1] <- newton.iter.soln$nfcnt + D*newton.iter.soln$njcnt
       q.half <- newton.iter.soln$x1
       #q.half <- newton.iter.soln$x
@@ -261,9 +296,9 @@ impmid <- function(q0, p0, M, pos.first = TRUE, N, h) {
     } else {
       # backward euler half step is reduced to just a nonlinear solve for p.half
       g <- function(p.half) p.half - p[n,] + (h/2)*GradU(q[n,] + (h/2)*solve(M,p.half))
-      J <- function(p.half) diag(D) + (h^2/4)*HessU(q[n,] + (h/2)*solve(M,p.half))*solve(M)
+      J <- function(p.half) diag(D) + (h^2/4)*solve(M,HessU(q[n,] + (h/2)*solve(M,p.half)))
       #newton.iter.soln <- newton_iteration(g, J, x0 = c(p[n,1],0.0), TOL = 1e-15,  max_iter = 100)
-      newton.iter.soln <- newton_iteration(g, J, x0 = p[n,], TOL = 1e-15,  max_iter = 100)
+      newton.iter.soln <- newton_iteration(g, J, x0 = p[n,], TOL = 1e-13,  max_iter = 100)
       num.newton.iters[n+1] <- newton.iter.soln$num.newton.iters
       p.half <- newton.iter.soln$x1
       q.half <- q[n,] + (h/2)*solve(M,p.half)
@@ -287,6 +322,7 @@ impmid <- function(q0, p0, M, pos.first = TRUE, N, h) {
     set_names(c("t", paste0("q",1:D), paste0("p",1:D))) %>%
     mutate(omega = omega) %>%
     mutate(num.newton.iters = num.newton.iters) %>%
+    mutate(num_grad = num_grad) %>%
     mutate(H = H) %>%
     mutate(DeltaH = H0 - H) %>%
     mutate(accept.prob = pmin(1,exp(DeltaH)))
