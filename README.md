@@ -2,6 +2,15 @@
 
 This repo contains all the code for our planned paper on Stiffness and using Implicit Midpoint in NUTS.
 
+# Outline of Code
+get_nuts_samples(z0) # nuts.R
+   1) ham_system <- create_hamiltonian_system() # nuts.R
+   2) integrator <- create_integrator() # integrators.R
+   3) get_single_nuts_sample(z0, ham_system, integrator) #nuts.R
+      A) p0 <- ham_system$get_momentum_sample()
+      B) tree <- create_onenode_tree(z0, ham_system) # initialize tree from build_tree.R
+      C) new_subtree <- build_tree(depth, tree$z_plus, tree$z_plus_1, directions[depth+1], ham_system, integrator, DEBUG)
+
 # High-Level Goals of Paper
 - teach stats community about stiffness and how explicit integrator fails (hit by section 1 of paper)
 - show with examples this is important in practice because it can speed up sampling (hit by 3)
