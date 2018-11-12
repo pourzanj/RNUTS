@@ -40,12 +40,19 @@ get_nuts_samples(z0) # nuts.R
 
 3. Examples in HMC
 GAUSSIAN EXAMPLES
+
 a) 2D Gaussian. Do a plot of Work per effective sample on y-axis vs. largest correlation coefficent on x-axis. Leapfrog will be one line and Midpoint will be one line
+
 b) Aki temperature linear regression w/o non-centered covariates which leads to high posterior correlation
+
 c) 250-D Guassian point out how non-clustered eigenvalues can take longer because of Newton-Krylov convergence properties
-NON-GAUSSIAN EXAMPLEs
+
+NON-GAUSSIAN EXAMPLES
+
 d) Neal's Funnel. popular example and illustrates how one has clustered eigenvalues when doing a hierarchical model
+
 e) Latent variable e.g. a GP with non-gaussian noise. the points of the GP will have high posterior correlation (Bales)
+
 f) PKPD with high posterior correlation
 
 4. New proposed warmup for HMC
