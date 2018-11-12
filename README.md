@@ -39,13 +39,14 @@ get_nuts_samples(z0) # nuts.R
 - other bells and whistles, line search, GMRES forcing term (mention in passing)
 
 3. Examples in HMC
-- 250-D Gaussian. Do a plot of Work per effective sample on y-axis vs. largest correlation coefficent on x-axis. Leapfrog will be one line and Midpoint will be one line. (maybe a 2D gaussian would be preferred)
-- possibly point out an example where non-clustered eigenvalues can take longer
-- possible example of linear regression w/o QR or with non-centered covariates which leads to high posterior correlation
-- Neal's Funnel. popular example and illustrates how one has clustered eigenvalues when doing a hierarchical model
-- Latent variable e.g. a GP with non-gaussian noise. the points of the GP will have high posterior correlation (Bales)
-- PKPD with high posterior correlation (gelman said to include a PKPD since it's hot)
-- estimating a covariance matrix using the Cholesky factor parameterization is highly stiff but non-Gaussian
+GAUSSIAN EXAMPLES
+a) 2D Gaussian. Do a plot of Work per effective sample on y-axis vs. largest correlation coefficent on x-axis. Leapfrog will be one line and Midpoint will be one line
+b) Aki temperature linear regression w/o non-centered covariates which leads to high posterior correlation
+c) 250-D Guassian point out how non-clustered eigenvalues can take longer because of Newton-Krylov convergence properties
+NON-GAUSSIAN EXAMPLEs
+d) Neal's Funnel. popular example and illustrates how one has clustered eigenvalues when doing a hierarchical model
+e) Latent variable e.g. a GP with non-gaussian noise. the points of the GP will have high posterior correlation (Bales)
+f) PKPD with high posterior correlation
 
 4. New proposed warmup for HMC
     - check stiff periodically which is really cheap using power iterations
