@@ -6,17 +6,18 @@
 #' @export
 #'
 #' @examples
-create_integrator <- function(is_implicit) {
+create_integrator <- function(is_implicit, nonlinear_solve = NULL) {
 
   # set integrator to either explicit or implicit
   integrate_one_step <- take_one_step_lf
   if (is_implicit) {
-    integrate_one_step <- take_one_step_im
+    integrate_one_step <- function(z0, z_1, direction, ham_system) {
+      take_one_step_im(z0, z_1, direction, ham_system, nonlinear_solve)
+    }
   }
 
   # define and return step function
   take_step <- function(z0, z_1, direction, ham_system, DEBUG) {
-
 
     result <- integrate_one_step(z0, z_1, direction, ham_system)
     H <- ham_system$compute_H(result$z1)
