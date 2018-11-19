@@ -79,7 +79,7 @@ struct generic_product_impl<MatrixReplacement, Rhs, SparseShape, DenseShape, Gem
 //' @param TOL
 //' @export
 // [[Rcpp::export]]
-NumericVector gmres(Function Av, NumericVector b, NumericVector x0, double TOL) {
+List gmres(Function Av, NumericVector b, NumericVector x0, double TOL) {
 
   int D = b.size();
 
@@ -106,7 +106,11 @@ NumericVector gmres(Function Av, NumericVector b, NumericVector x0, double TOL) 
     x(i) = x_eigen(i);
   }
 
-  return x;
+  out["x"] = x;
+  out["iterations"] = solver.iterations();
+  out["error"] = solver.error();
+
+  return out;
 }
 
 // You can include R code blocks in C++ files processed with sourceCpp
