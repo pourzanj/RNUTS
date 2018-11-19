@@ -23,7 +23,7 @@
 #' @examples
 create_generalized_newton_solve <- function(select_direction, select_stepsize, compute_residual, TOL = 1e-6, MAX_ITER = 100) {
 
-  do_generalized_newton_solve <- function(g, Jg, Jg_v, x0) {
+  function(g, Jg, Jg_v, x0) {
 
     eps <- TOL + 1
     x <- x0
@@ -34,17 +34,19 @@ create_generalized_newton_solve <- function(select_direction, select_stepsize, c
     converged <- TRUE
     prev_error <- c(0,0)
 
+    g_x <- g(x)
+    eps <- 0.0
+
     while(eps > TOL) {
-      g_x <- g(x)
 
       # 1) choose direction to update, delta
-      direction_soln <- select_direction(g_x, Jg, Jg_v)
-      delta <- direction_soln$x
+      direction_soln <- select_direction(iter, g_x, Jg, Jg_v, x, compute_residual)
+      delta <- direction_soln$delta
       num_hess_evals <- num_hess_evals + direction_soln$num_hess_evals
       num_hess_vec_prod_evals <- num_hess_vec_prod_evals + direction_soln$num_hess_vec_prod_evals
 
       # 2) choose stepsize
-      stepsize_soln <- select_direction(g_x, Jg, Jg_v)
+      stepsize_soln <- select_direction(delta, g_x, Jg, Jg_v)
       alpha <- stepsize_soln$x
       num_hess_evals <- num_hess_evals + stepsize_soln$num_hess_evals
       num_hess_vec_prod_evals <- num_hess_vec_prod_evals + stepsize_soln$num_hess_vec_prod_evals
@@ -52,8 +54,8 @@ create_generalized_newton_solve <- function(select_direction, select_stepsize, c
       # 3) make update
       x <- x + alpha*delta
 
-      # 4) check convergence
-
+      # 4) compute new error and check if we've reached the max number of iterations
+      g_x <- g(x)
       eps <- compute_residual()
 
       iter <- iter + 1
