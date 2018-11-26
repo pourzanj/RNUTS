@@ -21,7 +21,7 @@
 #' @export
 #'
 #' @examples
-create_generalized_newton_solve <- function(select_direction, select_stepsize, compute_residual, TOL = 1e-6, MAX_ITER = 100) {
+create_generalized_newton_solve <- function(select_direction, select_stepsize, compute_residual, NTOL = 1e-6, MAX_ITER = 20) {
 
   function(g, Jg, Jg_v, x0) {
 
@@ -29,15 +29,16 @@ create_generalized_newton_solve <- function(select_direction, select_stepsize, c
     x <- x0
 
     iter <- 0
+    num_func_evals <- 0
     num_hess_evals <- 0
     num_hess_vec_prod_evals <- 0
-    converged <- TRUE
-    prev_error <- c(0,0)
+
+    converged <- FALSE
 
     g_x <- g(x)
     eps <- 0.0
 
-    while(eps > TOL) {
+    while(!converged) {
 
       # 1) choose direction to update, delta
       direction_soln <- select_direction(iter, g_x, Jg, Jg_v, x, compute_residual)
@@ -46,8 +47,9 @@ create_generalized_newton_solve <- function(select_direction, select_stepsize, c
       num_hess_vec_prod_evals <- num_hess_vec_prod_evals + direction_soln$num_hess_vec_prod_evals
 
       # 2) choose stepsize
-      stepsize_soln <- select_direction(delta, g_x, Jg, Jg_v)
-      alpha <- stepsize_soln$x
+      stepsize_soln <- select_stepsize(iter, delta, g_x, g, Jg, Jg_v, x, compute_residual)
+      alpha <- stepsize_soln$alpha
+      num_func_evals <- num_func_evals + stepsize_soln$num_func_evals
       num_hess_evals <- num_hess_evals + stepsize_soln$num_hess_evals
       num_hess_vec_prod_evals <- num_hess_vec_prod_evals + stepsize_soln$num_hess_vec_prod_evals
 
@@ -56,19 +58,14 @@ create_generalized_newton_solve <- function(select_direction, select_stepsize, c
 
       # 4) compute new error and check if we've reached the max number of iterations
       g_x <- g(x)
-      eps <- compute_residual()
+      eps <- compute_residual(g_x)
+      converged <- eps < NTOL
 
       iter <- iter + 1
-      if(converged) {
-
-        if(iter >= MAX_ITER) {
-          warning("Newton reached max number of iterations.")
-          did_converge <- FALSE
-          break
-        }
+      if(iter >= MAX_ITER & !converged) {
+        warning("Newton reached max number of iterations.")
+        break
       }
-
-
     }
 
     return(list(x1 = x1, did_converge = converged, num_newton_iters = iter,
