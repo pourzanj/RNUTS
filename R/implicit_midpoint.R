@@ -27,7 +27,7 @@ take_one_step_im <- function(z0, z_1 = NULL, z_2 = NULL, direction, ham_system, 
   M <- ham_system$M
   GradU <- function(q) ham_system$compute_gradU(q)
   HessU <- function(q) ham_system$compute_hessU(q)
-  HessU_vec_prod <- ham_system$compute_hessU_vec_prod(q, v)
+  HessU_vec_prod <- function(q, v) ham_system$compute_hessU_vec_prod(q, v)
 
   # setup nonlinear solve functions required for backward euler half step
   # this includes function, its jacobian funciton, and a jacobian-vector product function
