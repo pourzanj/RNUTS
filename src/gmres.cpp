@@ -71,7 +71,10 @@ struct generic_product_impl<MatrixReplacement, Rhs, SparseShape, DenseShape, Gem
 }
 
 
-//' Solves Ax=b for x given a function to compute the product Av
+//' Solves Ax=b for x given a function to compute the product Av.
+//'
+//' Error returned is relative and is defined as |Ax-b| / |b| where
+//' the two-norm is used.
 //'
 //' @param Av
 //' @param b
