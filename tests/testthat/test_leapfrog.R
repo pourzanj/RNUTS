@@ -14,7 +14,8 @@ test_that("Onestep Leapfrog Steps Correctly on 2D Gaussian", {
 
   # compute using library function
   z0 <- list(q = c(0.0, 0.0), p = c(-0.1759228, 0.8358274), h = 0.1)
-  result <- take_one_step_lf(z0, z_1 = NULL, direction = 1, gaussian_system)
+  H0 <- gaussian_system$compute_H(z0)
+  result <- take_one_step_lf(z0, z_1 = NULL, z_2 = NULL, direction = 1, gaussian_system, H0)
   z1 <- result$z1
 
   expect_equal(z1$q, q1)
@@ -28,19 +29,21 @@ test_that("Onestep Leapfrog Catches Divergences", {
   gaussian_system <- create_gaussian_hamiltonian_system(M, Sigma)
 
   z0 <- list(q = c(0.0, 0.0), p = c(-0.1759228, 0.8358274), h = 0.1)
-  result <- take_one_step_lf(z0, z_1 = NULL, direction = 1, gaussian_system)
+  H0 <- gaussian_system$compute_H(z0)
+  result <- take_one_step_lf(z0, z_1 = NULL, z_2 = NULL, direction = 1, gaussian_system, H0)
   z1 <- result$z1
 
   # try with a big step that should be divergent
   z0 <- list(q = c(0.0, 0.0), p = c(-0.1759228, 0.8358274), h = 10.0)
-  result_divergent_1 <- take_one_step_lf(z0, z_1 = NULL, direction = 1, gaussian_system)
+  H0 <- gaussian_system$compute_H(z0)
+
+  expect_warning(result_divergent_1 <- take_one_step_lf(z0, z_1 = NULL, z_2 = NULL, direction = 1, gaussian_system, H0), "Divergence detected")
   z1_divergent <- result_divergent_1$z1
-  result_divergent_2 <- take_one_step_lf(z1_divergent, z_1 = NULL, direction = 1, gaussian_system)
+  expect_warning(result_divergent_2 <- take_one_step_lf(z1_divergent, z_1 = NULL, z_2 = NULL, direction = 1, gaussian_system, H0), "Divergence detected")
   z2_divergent <- result_divergent_2$z1
-  result_divergent_3 <- take_one_step_lf(z2_divergent, z_1 = NULL, direction = 1, gaussian_system)
+  expect_warning(result_divergent_3 <- take_one_step_lf(z2_divergent, z_1 = NULL, z_2 = NULL, direction = 1, gaussian_system, H0), "Divergence detected")
   z3_divergent <- result_divergent_3$z1
 
   expect_true(is.na(result$error))
-  print(result_divergent_3$error)
   expect_identical(result_divergent_3$error, "Divergence")
 })

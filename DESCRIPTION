@@ -9,7 +9,8 @@ Description: More about what it does (maybe more than one line)
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
+Depends: tidyverse
 Suggests: testthat
 LinkingTo: Rcpp
-Imports: Rcpp
+Imports:Rcpp
 RoxygenNote: 6.1.0

@@ -68,12 +68,20 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
     p0 <- as.vector(ham_system$get_momentum_sample())
   }
   z0 <- list(q = q0, p = p0, h = h0)
+  H0 <- ham_system$compute_H(z0)
 
   # start building tree
-  tree <- create_onenode_tree(depth = NA,
-                              invalid = NA,
-                              z = z0,
-                              ham_system = ham_system,
+  tree <- create_onenode_tree(z = z0,
+                              depth = NA,
+                              H0 = H0,
+                              H = H0,
+                              valid_subtree = as.logical(NA),
+                              uturn = as.logical(NA),
+                              integrator_error = as.character(NA),
+                              num_grad = as.integer(NA),
+                              num_hess = as.integer(NA),
+                              num_hess_vec = as.integer(NA),
+                              num_newton = as.integer(NA),
                               DEBUG = DEBUG)
 
   # sample directions we'll go in ahead of time for easier debugging
@@ -84,10 +92,10 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
 
     # we can either evolve the right-most node right (z_plus), or the left-most node left (z_minus)
     if(directions[depth+1] == 1){
-      new_subtree <- build_tree(depth, tree$z_plus, tree$z_plus_1, directions[depth+1], ham_system, integrator, DEBUG)
+      new_subtree <- build_tree(depth, tree$z_plus, tree$z_plus_1, tree$z_plus_2, directions[depth+1], ham_system, integrator, DEBUG)
     }
     else{
-      new_subtree <- build_tree(depth, tree$z_minus, tree$z_minus_1, directions[depth+1], ham_system, integrator, DEBUG)
+      new_subtree <- build_tree(depth, tree$z_minus, tree$z_minus_1, tree$z_minus_2, directions[depth+1], ham_system, integrator, DEBUG)
     }
 
     tree <- join_subtrees(tree, new_subtree, directions[depth+1], DEBUG)

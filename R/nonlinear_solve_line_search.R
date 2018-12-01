@@ -27,5 +27,3 @@ create_geometric_select_stepsize <- function(gamma = 0.5, MAX_ITER = 10) {
     list(alpha = alpha, num_func_evals = num_func_evals, num_hess_evals = 0, num_hess_vec_prod_evals = 0)
   }
 }
-
-

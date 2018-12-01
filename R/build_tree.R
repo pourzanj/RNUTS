@@ -1,64 +1,77 @@
-#' Title
+#' Create a history tibble for a onenode tree.
 #'
-#' @param z
-#' @param depth
-#' @param H
-#' @param invalid
-#' @param num_newton
-#' @param num_grad
+#' A helper function to create_onenode_tree to create clean,
+#' uniform tibbles that keep track of the history of the tree.
 #'
-#' @return
+#' @param z a list containing vectors q and p and a stepsize h representing a point in phase space plus a stepsize.
+#' @param depth the depth in the whole NUTS tree that this node sits at
+#' @param H the Hamiltonian value at this point in phase space
+#' @param valid_subtree whether the subtree at that depth was valid
+#' @param uturn whether a uturn occurred at that node
+#' @param integrator_error either NA, "divergence", or "newton"
+#' @param num_grad number of likelihood gradient evaluations it took to get that step
+#' @param num_hess number of likelihood hessian evaluations it took to get that step
+#' @param num_hess_vec number of likelihood hessian-vector product evaluations it took to get that step
+#' @param num_newton  number of Newton iterations it took to get that step
+#'
+#' @return A tibble with a single row that represents a node in the tree including its depth, energy value, position, and whether the step was invalid
 #' @export
 #'
 #' @examples
-create_onenode_hist <- function(z, depth, H, invalid, num_newton, num_grad) {
-
-  if(!is.character(invalid)) {
-    invalid <- as.character(NA)
-  }
+create_onenode_hist <- function(z, depth, H0, H, valid_subtree, uturn, integrator_error, num_grad, num_hess, num_hess_vec, num_newton) {
   D <- length(z$q)
   q <- matrix(z$q, nrow = 1) %>% as_tibble %>% set_names(paste0("q",1:D))
   p <- matrix(z$p, nrow = 1) %>% as_tibble %>% set_names(paste0("p",1:D))
 
-  tibble(depth = depth, H = H, invalid = invalid) %>%
-    mutate(num_newton = num_newton, num_grad = num_newton) %>%
+  tibble(depth = depth, h = z$h, H0 = H0, H = H,
+         valid_subtree = valid_subtree,
+         uturn = uturn,
+         integrator_error = integrator_error) %>%
+    mutate(num_grad = num_newton,
+           num_hess = num_hess,
+           num_hess_vec = num_hess_vec,
+           num_newton = num_newton) %>%
     bind_cols(bind_cols(q, p))
 }
 
-#' Title
+#' Create one node tree.
 #'
-#' use this function to create trees to make sure all trees have the same entries with the same names
+#' This function is akin to a constructor. It makes sure
+#' we create trees that uniformly have the same entries with the same names.
 #'
-#' @param depth
-#' @param invalid
-#' @param z
-#' @param ham_system
-#' @param num_newton
-#' @param num_grad
-#' @param DEBUG
+#' @param z a list containing vectors q and p and a stepsize h representing a point in phase space plus a stepsize.
+#' @param depth the depth in the whole NUTS tree that this node sits at
+#' @param H the Hamiltonian value at this point in phase space
+#' @param valid_subtree whether the subtree at that depth was valid
+#' @param uturn whether a uturn occurred at that node
+#' @param integrator_error either NA, "divergence", or "newton"
+#' @param num_grad number of likelihood gradient evaluations it took to get that step
+#' @param num_hess number of likelihood hessian evaluations it took to get that step
+#' @param num_hess_vec number of likelihood hessian-vector product evaluations it took to get that step
+#' @param num_newton  number of Newton iterations it took to get that step
+#' @param DEBUG if this is on a tibble keeping track of the history of the node will be returned as well
 #'
-#' @return
+#' @return A one node tree which is eseentially a list which several attributes such as depth and whether the tree is valid.
 #' @export
 #'
 #' @examples
-create_onenode_tree <- function(depth, invalid, z, ham_system, num_newton = NA, num_grad = NA, DEBUG) {
-
-  H <- ham_system$compute_H(z)
-
+create_onenode_tree <- function(z, depth, H0, H, valid_subtree, uturn, integrator_error, num_grad, num_hess, num_hess_vec, num_newton, DEBUG) {
   hist <- NULL
   if (DEBUG) {
-    hist <- create_onenode_hist(z, depth, H, invalid, num_newton, num_grad)
+    hist <- create_onenode_hist(z, depth, H0, H, valid_subtree, uturn, integrator_error, num_grad, num_hess, num_hess_vec, num_newton)
   }
 
   list(depth = depth,
-       invalid = !is.na(invalid),
+       valid = valid_subtree,
        coordinate_uturn = rep(FALSE, length(z$q)),
-       log_w = -H,
+       log_w = H0-H,
        z_rep = z,
        z_minus = z,
        z_minus_1 = NULL,
+       z_minus_2 = NULL,
        z_plus = z,
        z_plus_1 = NULL,
+       z_plus_2 = NULL,
        hist = hist)
 }
 
@@ -75,6 +88,7 @@ create_onenode_tree <- function(depth, invalid, z, ham_system, num_newton = NA, 
 #'
 #' @param z0 Initial point to start from. Should contain q, p, h
 #' @param z_1 z_{-1} Previous point. Useful for determining a guess of z_{1}
+#' @param z_1 z_{-2} Previous, previous point. Useful for determining a guess of z_{1}
 #' @param depth Number of levels of tree.
 #' @param direction Direction we'd like to build tree in (forwards or backwards)
 #' @param integrator List representing our integrator
@@ -84,19 +98,31 @@ create_onenode_tree <- function(depth, invalid, z, ham_system, num_newton = NA, 
 #' @export
 #'
 #' @examples
-build_tree <- function(depth, z0, z_1, direction, ham_system, integrator, DEBUG = FALSE) {
+build_tree <- function(depth, z0, z_1, z_2, direction, ham_system, H0, integrator, DEBUG = FALSE) {
 
   new_tree <- NULL
 
   # base case (take a single step)
   if(depth == 0){
-    new_tree <- integrator$take_step(z0, z_1, direction, ham_system, DEBUG)
+    integrator_result <- integrator$take_step(z0, z_1, z_2, direction, ham_system, H0, DEBUG)
+    new_tree <- create_onenode_tree(z = integrator_result$z1,
+                                    depth = depth,
+                                    H0 = H0,
+                                    H = ham_system$compute_H(integrator_result$z1),
+                                    valid_subtree = is.na(integrator_result$integrator_error),
+                                    uturn = as.logical(NA),
+                                    integrator_error = integrator_result$integrator_error,
+                                    num_grad = integrator_result$num_grad,
+                                    num_hess = integrator_result$num_hess,
+                                    num_hess_vec = integrator_result$num_hess_vec,
+                                    num_newton = integrator_result$num_newton,
+                                    DEBUG = DEBUG)
   }
 
   # recursion
   else{
 
-    inner_subtree <- build_tree(depth-1, z0, z_1, direction, ham_system, integrator, DEBUG)
+    inner_subtree <- build_tree(depth-1, z0, z_1, z_2, direction, ham_system, H0, integrator, DEBUG)
 
     # only build outer subtree and tack it on if inner subtree was valid. otherwise
     # just return the inner_subtree
@@ -109,7 +135,7 @@ build_tree <- function(depth, z0, z_1, direction, ham_system, integrator, DEBUG 
         z0.outer <- inner_subtree$z_minus
       }
 
-      outer_subtree <- build_tree(depth-1, z0.outer, z_1, direction, ham_system, integrator, DEBUG)
+      outer_subtree <- build_tree(depth-1, z0.outer, z_1, z_2, direction, ham_system, H0, integrator, DEBUG)
       new_tree <- join_subtrees(inner_subtree, outer_subtree, direction, DEBUG)
     } else {
       new_tree <- inner_subtree
@@ -127,7 +153,9 @@ build_tree <- function(depth, z0, z_1, direction, ham_system, integrator, DEBUG 
 }
 
 
-#' Join Subtrees
+#' Join two subtrees.
+#'
+#' Joins an inner subtree and an outer subtree.
 #'
 #' This function is called either in sampling where we tack on a new subtree to our current tree
 #' The other place where it's called is in build_tree() where we create two trees and join them.
@@ -141,11 +169,10 @@ build_tree <- function(depth, z0, z_1, direction, ham_system, integrator, DEBUG 
 #' For a two node tree we sample a representative from the two nodes. This sampling is
 #' described in the function sample_new_represenative().
 #'
+#' @param inner_subtree The subtree created first.
+#' @param outer_subtree The subtree created second as an extension of the end of the inner subtree.
 #'
-#' @param inner_subtree
-#' @param outer_subtree
-#'
-#' @return
+#' @return A new joined tree.
 #' @export
 #'
 #' @examples
@@ -317,11 +344,3 @@ update_coordinate_uturn <- function(tree, ham_system) {
 
   tree$coordinate_uturn | coordinate_uturns_forward | coordinate_uturns_backward
 }
-
-
-
-
-
-
-
-

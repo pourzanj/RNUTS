@@ -71,15 +71,17 @@ struct generic_product_impl<MatrixReplacement, Rhs, SparseShape, DenseShape, Gem
 }
 
 
+//' GMRES Solver that take a linear operator.
+//'
 //' Solves Ax=b for x given a function to compute the product Av.
 //'
 //' Error returned is relative and is defined as |Ax-b| / |b| where
 //' the two-norm is used.
 //'
-//' @param Av
-//' @param b
-//' @param x0
-//' @param TOL
+//' @param Av a function that returns the result of applying the matrix A to the vector v
+//' @param b the vector on the RHS of the linear solve Ax=b
+//' @param x0 an initial guess of the solution to give to GMRES
+//' @param TOL specifies relative tolerance of the solution x, i.e. makes sure that |Ax-b|/|b| < TOL
 //' @export
 // [[Rcpp::export]]
 List gmres(Function Av, NumericVector b, NumericVector x0, double TOL) {

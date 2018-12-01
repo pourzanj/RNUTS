@@ -29,17 +29,19 @@ create_generalized_newton_solve <- function(select_direction, select_stepsize, c
     num_func_evals <- 0
     num_hess_evals <- 0
     num_hess_vec_prod_evals <- 0
-    converged <- FALSE
 
     x <- x0
     g_x <- g(x)
     num_func_evals <- num_func_evals + 1
-    eps <- 0.0
+    eps <- compute_residual(g_x)
+    converged <- eps < NTOL
 
     while(!converged) {
 
+      #print(paste0("Iteration: ", iter, " eps: ", eps))
+
       # 1) choose direction to update, delta
-      direction_soln <- select_direction(iter, g_x, Jg, Jg_v, x, compute_residual)
+      direction_soln <- select_direction(iter, x, g_x, Jg, Jg_v, compute_residual)
       delta <- direction_soln$delta
       num_hess_evals <- num_hess_evals + direction_soln$num_hess_evals
       num_hess_vec_prod_evals <- num_hess_vec_prod_evals + direction_soln$num_hess_vec_prod_evals
@@ -63,7 +65,7 @@ create_generalized_newton_solve <- function(select_direction, select_stepsize, c
 
       iter <- iter + 1
       if(iter >= MAX_ITER & !converged) {
-        warning("Newton reached max number of iterations.")
+        warning("Newton reached max number of iterations and failed to converge.")
         break
       }
     }
