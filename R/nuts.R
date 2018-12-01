@@ -62,7 +62,6 @@ get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, max_tr
 #'
 #' @examples
 get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treedepth = 10, DEBUG = FALSE) {
-
   # sample momentum
   if (is.null(p0)) {
     p0 <- as.vector(ham_system$get_momentum_sample())
@@ -75,8 +74,8 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
                               depth = NA,
                               H0 = H0,
                               H = H0,
-                              valid_subtree = as.logical(NA),
-                              uturn = as.logical(NA),
+                              valid_subtree = TRUE,
+                              uturn = FALSE,
                               integrator_error = as.character(NA),
                               num_grad = as.integer(NA),
                               num_hess = as.integer(NA),
@@ -92,14 +91,14 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
 
     # we can either evolve the right-most node right (z_plus), or the left-most node left (z_minus)
     if(directions[depth+1] == 1){
-      new_subtree <- build_tree(depth, tree$z_plus, tree$z_plus_1, tree$z_plus_2, directions[depth+1], ham_system, integrator, DEBUG)
+      new_subtree <- build_tree(depth, tree$z_plus, tree$z_plus_1, tree$z_plus_2, directions[depth+1], ham_system, H0, integrator, DEBUG)
     }
     else{
-      new_subtree <- build_tree(depth, tree$z_minus, tree$z_minus_1, tree$z_minus_2, directions[depth+1], ham_system, integrator, DEBUG)
+      new_subtree <- build_tree(depth, tree$z_minus, tree$z_minus_1, tree$z_minus_2, directions[depth+1], ham_system, H0, integrator, DEBUG)
     }
-
-    tree <- join_subtrees(tree, new_subtree, directions[depth+1], DEBUG)
-    if (tree$invalid) break
+    browser()
+    tree <- join_subtrees(tree, new_subtree, directions[depth+1], ham_system, DEBUG)
+    if (!tree$valid) break
   }
 
   return(list(q = tree$z_rep$q, hist = tree$hist))
