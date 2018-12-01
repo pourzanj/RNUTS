@@ -139,10 +139,19 @@ build_tree <- function(depth, z0, z_1, z_2, direction, ham_system, H0, integrate
       outer_subtree <- build_tree(depth-1, z0.outer, z_1, z_2, direction, ham_system, H0, integrate_step, DEBUG)
       new_tree <- join_subtrees(inner_subtree, outer_subtree, direction, ham_system, DEBUG)
 
+
+
     } else {
       new_tree <- inner_subtree
     }
 
+  }
+
+  # if we're in debug mode update the depth of the subtree in the history tibble. note that this has to be
+  # done here in build_tree because join_trees is also used in the main NUTS call where we don't want these depths to be updated in this manner
+  if (DEBUG) {
+    depth_ <- depth
+    new_tree$hist <- new_tree$hist %>% mutate(depth = depth_)
   }
 
   new_tree
