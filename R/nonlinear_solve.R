@@ -47,7 +47,7 @@ create_generalized_newton_solve <- function(select_direction, select_stepsize, c
       num_hess_vec_prod_evals <- num_hess_vec_prod_evals + direction_soln$num_hess_vec_prod_evals
 
       # 2) choose stepsize
-      stepsize_soln <- select_stepsize(iter, delta, g_x, g, Jg, Jg_v, x, compute_residual)
+      stepsize_soln <- select_stepsize(iter, delta, g_x, g, Jg, Jg_v, x)
       alpha <- stepsize_soln$alpha
       num_func_evals <- num_func_evals + stepsize_soln$num_func_evals
       num_hess_evals <- num_hess_evals + stepsize_soln$num_hess_evals
