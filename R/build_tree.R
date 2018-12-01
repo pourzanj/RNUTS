@@ -139,8 +139,6 @@ build_tree <- function(depth, z0, z_1, z_2, direction, ham_system, H0, integrate
       outer_subtree <- build_tree(depth-1, z0.outer, z_1, z_2, direction, ham_system, H0, integrate_step, DEBUG)
       new_tree <- join_subtrees(inner_subtree, outer_subtree, direction, ham_system, DEBUG)
 
-
-
     } else {
       new_tree <- inner_subtree
     }
@@ -151,7 +149,9 @@ build_tree <- function(depth, z0, z_1, z_2, direction, ham_system, H0, integrate
   # done here in build_tree because join_trees is also used in the main NUTS call where we don't want these depths to be updated in this manner
   if (DEBUG) {
     depth_ <- depth
-    new_tree$hist <- new_tree$hist %>% mutate(depth = depth_)
+    new_tree$hist <- new_tree$hist %>%
+      mutate(depth = depth_) %>%
+      mutate(valid_subtree = new_tree$valid)
   }
 
   new_tree
@@ -268,7 +268,7 @@ join_tree_histories <- function(inner_subtree, outer_subtree, direction, nouturn
   if (!nouturn_criteria_met & both_subtrees_valid) {
     new_hist <- new_hist %>% mutate(valid_subtree = FALSE)
     new_hist$uturn[1] <- TRUE
-    new_hist$uturn[nrow(new_hist)] <- FALSE
+    new_hist$uturn[nrow(new_hist)] <- TRUE
   }
 
   new_hist
