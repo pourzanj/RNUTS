@@ -96,7 +96,6 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
     else{
       new_subtree <- build_tree(depth, tree$z_minus, tree$z_minus_1, tree$z_minus_2, directions[depth+1], ham_system, H0, integrator, DEBUG)
     }
-    browser()
     tree <- join_subtrees(tree, new_subtree, directions[depth+1], ham_system, DEBUG)
     if (!tree$valid) break
   }
