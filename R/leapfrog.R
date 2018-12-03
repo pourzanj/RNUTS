@@ -19,7 +19,7 @@ take_one_step_lf <- function(z0, z_1, z_2, direction, ham_system, H0) {
   # check for divergence
   H1 <- ham_system$compute_H(z1)
   error <- as.character(NA)
-  if (H1-H0 >= 1000) {
+  if (H1-H0 >= 10) {
     error <- "Divergence"
   }
 

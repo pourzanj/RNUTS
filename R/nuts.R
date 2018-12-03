@@ -19,35 +19,23 @@ get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, max_tr
 
   q[1,] <- q0
 
-  lf <- create_integrator(is_implicit = FALSE)
-  im <- create_integrator(is_implicit = TRUE)
-
-  tree_depth <- rep(0, num_samples+1)
-  total_grad_evals <- rep(0, num_samples+1)
-  no_error <- rep(TRUE, num_samples+1)
+  tree_depth <- rep(NA, num_samples+1)
   hist <- list(NA)
 
   for(iter in 1:num_samples){
 
-
-    sample <- get_single_nuts_sample(as.vector(q[iter,]), p0 = NULL, h0, ham_system, integrator, max_treedepth = 10, DEBUG)
+    sample <- get_single_nuts_sample(as.vector(q[iter,]), p0 = NULL, h0, ham_system, integrator, max_treedepth, DEBUG)
     q[iter+1,] <- sample$q
 
     if(DEBUG) {
-    tree_depth[iter+1] <- sample$hist %>% pull(depth) %>% max(na.rm = TRUE)
-    total_grad_evals[iter+1] <- sample$hist %>% pull(num_grad) %>% sum(na.rm = TRUE)
-    no_error[iter+1] <- (sample$hist$invalid == "U-Turn") %>% all(na.rm = TRUE)
-    hist <- c(hist, list(sample$hist))
+      tree_depth[iter+1] <- sample$hist %>% pull(depth) %>% max(na.rm = TRUE)
+      hist <- c(hist, list(sample$hist))
     }
   }
 
-  as_tibble(q) %>%
-    set_names(paste0("q",1:D)) %>%
-    mutate(tree_depth = tree_depth,
-           total_grad_evals = total_grad_evals,
-           no_error = no_error) %>%
-    mutate(hist = hist)
-
+  tibble(tree_depth = tree_depth,
+         hist = hist) %>%
+         bind_rows(as_tibble(q) %>% set_names(paste0("q",1:D)))
 }
 
 #' Get single NUTS sample
