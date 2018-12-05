@@ -19,7 +19,14 @@ get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, max_tr
 
   q[1,] <- q0
 
-  tree_depth <- rep(NA, num_samples+1)
+  tree_depth <- rep(as.integer(NA), num_samples+1)
+  error <- rep(as.character(NA), num_samples+1)
+
+  num_grad <- rep(as.numeric(NA), num_samples+1)
+  num_hess <- rep(as.numeric(NA), num_samples+1)
+  num_hess_vec <- rep(as.numeric(NA), num_samples+1)
+  num_newton <- rep(as.numeric(NA), num_samples+1)
+
   hist <- list(NA)
 
   for(iter in 1:num_samples){
@@ -27,15 +34,27 @@ get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, max_tr
     sample <- get_single_nuts_sample(as.vector(q[iter,]), p0 = NULL, h0, ham_system, integrator, max_treedepth, DEBUG)
     q[iter+1,] <- sample$q
 
+    tree_depth[iter+1] <- sample$tree_depth
+    error[iter+1] <- sample$error
+
+    num_grad[iter+1] <- sample$num_grad
+    num_hess[iter+1] <- sample$num_hess
+    num_hess_vec[iter+1] <- sample$num_hess_vec
+    num_newton[iter+1] <- sample$num_newton
+
     if(DEBUG) {
-      tree_depth[iter+1] <- sample$hist %>% pull(depth) %>% max(na.rm = TRUE)
       hist <- c(hist, list(sample$hist))
     }
   }
 
   tibble(tree_depth = tree_depth,
+         error = error,
+         num_grad = num_grad,
+         num_hess = num_hess,
+         num_hess_vec = num_hess_vec,
+         num_newton = num_newton,
          hist = hist) %>%
-         bind_rows(as_tibble(q) %>% set_names(paste0("q",1:D)))
+         bind_cols(as_tibble(q) %>% set_names(paste0("q",1:D)))
 }
 
 #' Get single NUTS sample
@@ -88,5 +107,10 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
     if (!tree$valid) break
   }
 
-  return(list(q = tree$z_rep$q, hist = tree$hist))
+  return(list(q = tree$z_rep$q, tree_depth = tree$depth,  error = tree$integrator_error,
+              num_grad = tree$num_grad,
+              num_hess = tree$num_hess,
+              num_hess_vec = tree$num_hess_vec,
+              num_newton = tree$num_newton,
+              hist = tree$hist))
 }

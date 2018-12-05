@@ -63,8 +63,10 @@ create_onenode_tree <- function(z, depth, H0, H, valid_subtree, uturn, integrato
 
   list(depth = depth,
        valid = valid_subtree,
+       integrator_error = integrator_error,
        coordinate_uturn = rep(FALSE, length(z$q)),
        log_w = H0-H,
+       rho = z$p,
        z_rep = z,
        z_minus = z,
        z_minus_1 = NULL,
@@ -72,6 +74,10 @@ create_onenode_tree <- function(z, depth, H0, H, valid_subtree, uturn, integrato
        z_plus = z,
        z_plus_1 = NULL,
        z_plus_2 = NULL,
+       num_grad = num_grad,
+       num_hess = num_hess,
+       num_hess_vec = num_hess_vec,
+       num_newton = num_newton,
        hist = hist)
 }
 
@@ -237,6 +243,19 @@ join_subtrees <- function(inner_subtree, outer_subtree, direction, ham_system, D
     tree$valid = FALSE
   }
 
+  # update the integrator error if there was one
+  if(!outer_subtree$valid & !is.na(outer_subtree$integrator_error)) {
+    tree$integrator_error <- outer_subtree$integrator_error
+  } else {
+    tree$integrator_error <- as.character(NA)
+  }
+
+  # update number of evals
+  tree$num_grad <- sum(inner_subtree$num_grad, outer_subtree$num_grad, na.rm = TRUE)
+  tree$num_hess <- sum(inner_subtree$num_hess, outer_subtree$num_hess, na.rm = TRUE)
+  tree$num_hess_vec <- sum(inner_subtree$num_hess_vec, outer_subtree$num_hess_vec, na.rm = TRUE)
+  tree$num_newton <- sum(inner_subtree$num_newton, outer_subtree$num_newton, na.rm = TRUE)
+
   # update hist if we're in debug mode
   if (DEBUG) {
     tree$hist <- join_tree_histories(inner_subtree, outer_subtree, direction, nouturn_criteria_met, both_subtrees_valid)
@@ -331,8 +350,10 @@ check_uturn_criteria <- function(tree, ham_system) {
 
   # instead of momentums get velocities by multipling by M^{-1}
   M <- ham_system$M
-  v_plus <- solve(M,tree$z_plus$p)
-  v_minus <- solve(M,tree$z_minus$p)
+  # v_plus <- solve(M,tree$z_plus$p)
+  # v_minus <- solve(M,tree$z_minus$p)
+  v_plus <- tree$z_plus$p
+  v_minus <- tree$z_minus$p
 
   no_uturn_forward <- as.numeric(v_plus %*% (q_plus-q_minus)) > 0
   no_uturn_backward <- as.numeric(-v_minus %*% (q_minus-q_plus)) > 0
@@ -340,6 +361,32 @@ check_uturn_criteria <- function(tree, ham_system) {
   no_uturn_forward & no_uturn_backward
 }
 
+#' Check that there's NO U-Turns using new generalized Criteria.
+#'
+#' Returns true if there's no U-Turn in either direction.
+#'
+#' @param tree the joined tree we're checking the U-Turn of
+#' @param ham_system the Hamiltonian system for the problem
+#'
+#' @return TRUE if there's no U-Turn and FALSE if there is
+#' @export
+#'
+#' @examples
+check_generalized_uturn_criteria <- function(tree, ham_system) {
+
+  q_plus <- tree$z_plus$q
+  q_minus <- tree$z_minus$q
+
+  # instead of momentums get velocities by multipling by M^{-1}
+  M <- ham_system$M
+  v_plus <- tree$z_plus$p
+  v_minus <- tree$z_minus$p
+
+  no_uturn_forward <- as.numeric(v_plus %*% (q_plus-q_minus)) > 0
+  no_uturn_backward <- as.numeric(-v_minus %*% (q_minus-q_plus)) > 0
+
+  no_uturn_forward & no_uturn_backward
+}
 
 #' Check for U-Turns at the coordinate level
 #'

@@ -123,6 +123,9 @@ take_one_step_im_midpoint <- function(z0, z_1 = NULL, z_2 = NULL, direction, ham
   num_hess_vec_prod <- nonlin_solve_soln$num_hess_vec_prod_evals
   num_newton <- nonlin_solve_soln$num_newton_iters
   error <- ifelse(nonlin_solve_soln$did_converge, NA, "Newton")
+  if(!nonlin_solve_soln$did_converge) {
+    print("Newton did not converge")
+  }
 
   # use solve to set q
   p1 <- nonlin_solve_soln$x

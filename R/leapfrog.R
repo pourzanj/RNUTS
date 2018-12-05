@@ -21,6 +21,7 @@ take_one_step_lf <- function(z0, z_1, z_2, direction, ham_system, H0) {
   error <- as.character(NA)
   if (H1-H0 >= 10) {
     error <- "Divergence"
+    print("Divergence")
   }
 
   # return
