@@ -8,6 +8,7 @@ create_gaussian_hamiltonian_system <- function(M, Sigma) {
   L <- chol(M)
 
   list(M = M,
+       compute_U = compute_U,
        compute_H = function(z) 0.5*sum(z$p*solve(M,z$p)) + compute_U(z$q),
        compute_gradU = compute_gradU,
        compute_hessU = compute_hessU,
@@ -21,13 +22,15 @@ create_funnel_hamiltonian_system <- function(M, D) {
   compute_U <- function(q) {
     y <- q[1]
     x <- q[2:length(q)]
-    (y^2)/18 + y/2 + (x^2)/(2*exp(y))
+    N <- length(q) - 1
+    (y^2)/18 + N*(y/2) + sum(x^2)/(2*exp(y))
   }
 
   compute_gradU <- function(q) {
     y <- q[1]
     x <- q[2:length(q)]
-    c(y/9 + 0.5 - (x^2)/(2*exp(y)), x*exp(-y))
+    N <- length(q) - 1
+    c(y/9 + N/2 - sum(x^2)/(2*exp(y)), x*exp(-y))
   }
 
   compute_hessU <- function(q) {
@@ -36,7 +39,7 @@ create_funnel_hamiltonian_system <- function(M, D) {
 
     # arrow matrix
     H <- diag(length(q))
-    diag(H) <- c(1/9 + (x^2)/(2*exp(y)), rep(exp(-y), length(q)-1))
+    diag(H) <- c(1/9 + sum(x^2)/(2*exp(y)), rep(exp(-y), length(q)-1))
     H[2:length(q), 1] <- -x*exp(-y)
     H[1,2:length(q)] <- -x*exp(-y)
 
@@ -49,7 +52,7 @@ create_funnel_hamiltonian_system <- function(M, D) {
 
     # arrow matrix
     H <- diag(length(q))
-    diag(H) <- c(1/9 + (x^2)/(2*exp(y)), rep(exp(-y), length(q)-1))
+    diag(H) <- c(1/9 + sum(x^2)/(2*exp(y)), rep(exp(-y), length(q)-1))
     H[2:length(q), 1] <- -x*exp(-y)
     H[1,2:length(q)] <- -x*exp(-y)
 
@@ -60,6 +63,7 @@ create_funnel_hamiltonian_system <- function(M, D) {
   L <- chol(M)
 
   list(M = M,
+       compute_U = compute_U,
        compute_H = function(z) 0.5*sum(z$p*solve(M,z$p)) + compute_U(z$q),
        compute_gradU = compute_gradU,
        compute_hessU = compute_hessU,
@@ -80,10 +84,11 @@ create_funnel_hamiltonian_system <- function(M, D) {
 #' @examples
 create_custom_hamiltonian_system <- function(M, compute_U, compute_gradU, compute_hessU, compute_hessU_vec_prod) {
 
-  D <- length(M)
+  D <- nrow(M)
   L <- chol(M)
 
   list(M = M,
+       compute_U = compute_U,
        compute_H = function(z) 0.5*sum(z$p*solve(M,z$p)) + compute_U(z$q),
        compute_gradU = compute_gradU,
        compute_hessU = compute_hessU,

@@ -12,7 +12,11 @@
 #' @export
 #'
 #' @examples
-get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, max_treedepth = 10, DEBUG = FALSE) {
+get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, refresh = NULL, max_treedepth = 10, DEBUG = FALSE) {
+
+  if(is.null(refresh)) {
+    refresh <- floor(num_samples/10)
+  }
 
   D <- length(q0)
   q <- matrix(NA, nrow = num_samples+1, ncol = D)
@@ -45,6 +49,11 @@ get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, max_tr
     if(DEBUG) {
       hist <- c(hist, list(sample$hist))
     }
+
+    if(iter %% refresh == 0) {
+      print(paste("Sample", iter, "completed. Average Depth: ", mean(tree_depth[(iter-refresh+1):iter])))
+    }
+
   }
 
   tibble(tree_depth = tree_depth,
@@ -69,6 +78,7 @@ get_nuts_samples <- function(num_samples, q0, h0, ham_system, integrator, max_tr
 #'
 #' @examples
 get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treedepth = 10, DEBUG = FALSE) {
+
   # sample momentum
   if (is.null(p0)) {
     p0 <- as.vector(ham_system$get_momentum_sample())
@@ -93,7 +103,6 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
   # sample directions we'll go in ahead of time for easier debugging
   directions <- base::sample(c(-1, 1), max_treedepth, replace = TRUE)
   for(depth in 0:(max_treedepth-1)) {
-
     new_subtree <- NULL
 
     # we can either evolve the right-most node right (z_plus), or the left-most node left (z_minus)
@@ -103,7 +112,7 @@ get_single_nuts_sample <- function(q0, p0, h0, ham_system, integrator, max_treed
     else{
       new_subtree <- build_tree(depth, tree$z_minus, tree$z_minus_1, tree$z_minus_2, directions[depth+1], ham_system, H0, integrator, DEBUG)
     }
-    tree <- join_subtrees(tree, new_subtree, directions[depth+1], ham_system, DEBUG)
+    tree <- join_subtrees(tree, new_subtree, directions[depth+1], biased_progressive_sampling = TRUE, ham_system, DEBUG)
     if (!tree$valid) break
   }
 

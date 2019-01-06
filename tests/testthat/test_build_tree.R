@@ -111,7 +111,7 @@ test_that("we can properly sample a representative from two newly created onenod
     new_onenode_tree <- build_tree(depth = 0, z0, z_1 = NULL, z_2 = NULL, direction = 1, funnel_system, H0, integrate_step = take_leapfrog_step, DEBUG = TRUE)
 
     # the new step has less energy so we should sample it w/ prob. 1
-    new_z_rep <- sample_new_representative(root_tree, new_onenode_tree)
+    new_z_rep <- sample_new_representative_biasedly(root_tree, new_onenode_tree)
 
     expect_identical(new_onenode_tree$z_rep, new_z_rep)
 })
@@ -140,7 +140,7 @@ test_that("we can properly join a root tree with a newly create onenode_tree", {
   new_onenode_tree <- build_tree(depth = 0, z0, z_1 = NULL, z_2 = NULL, direction = 1, funnel_system, H0, integrate_step = take_leapfrog_step, DEBUG = TRUE)
 
   # join the two
-  joined_tree <- join_subtrees(root_tree, new_onenode_tree, direction = 1, funnel_system, DEBUG = TRUE)
+  joined_tree <- join_subtrees(root_tree, new_onenode_tree, direction = 1, biased_progressive_sampling = TRUE, funnel_system, DEBUG = TRUE)
 
   # z_plus actually lost energy so it should be the represntative w. prob. 1
   expect_identical(joined_tree$z_rep, joined_tree$z_plus)

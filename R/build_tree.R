@@ -143,7 +143,7 @@ build_tree <- function(depth, z0, z_1, z_2, direction, ham_system, H0, integrate
       # build outer_subtree and join even if it's invalid because we might
       # want to view its history.
       outer_subtree <- build_tree(depth-1, z0.outer, z_1, z_2, direction, ham_system, H0, integrate_step, DEBUG)
-      new_tree <- join_subtrees(inner_subtree, outer_subtree, direction, ham_system, DEBUG)
+      new_tree <- join_subtrees(inner_subtree, outer_subtree, direction, biased_progressive_sampling = FALSE, ham_system, DEBUG)
 
     } else {
       new_tree <- inner_subtree
@@ -184,13 +184,14 @@ build_tree <- function(depth, z0, z_1, z_2, direction, ham_system, H0, integrate
 #' @param outer_subtree The subtree created second as an extension of the end of the inner subtree.
 #' @param direction the direction the tree were build determines if outer is added on the plus side or minus side
 #' @param ham_system the hamiltonian system of the problem
+#' @param biased_progressive_sampling whether to sample biasedly sample the new tree (should only be done in the original call to build_tree() called from NUTS)
 #' @param DEBUG whether to include the history tibble
 #'
 #' @return A new joined tree.
 #' @export
 #'
 #' @examples
-join_subtrees <- function(inner_subtree, outer_subtree, direction, ham_system, DEBUG) {
+join_subtrees <- function(inner_subtree, outer_subtree, direction, biased_progressive_sampling, ham_system, DEBUG) {
 
   # returned tree starts as copy of inner_subtree.
   tree <- inner_subtree
@@ -199,7 +200,12 @@ join_subtrees <- function(inner_subtree, outer_subtree, direction, ham_system, D
 
   # only update representative if outer_subtree is valid
   if(outer_subtree$valid) {
-    tree$z_rep <- sample_new_representative(inner_subtree, outer_subtree)
+    if(biased_progressive_sampling) {
+      tree$z_rep <- sample_new_representative_biasedly(inner_subtree, outer_subtree)
+    } else{
+      tree$z_rep <- sample_new_representative_uniformly(inner_subtree, outer_subtree)
+    }
+
   }
 
   # update z_plus, z_plus_1, z_plus_2, z_minus, z_minus_1, z_minus_2. note if depth of the
@@ -293,7 +299,42 @@ join_tree_histories <- function(inner_subtree, outer_subtree, direction, nouturn
   new_hist
 }
 
-#' Take biased tree sample.
+#' Take a uniform sample over the joined trajectory.
+#'
+#' Uniformly sample the joined trajectory according the weights of the two constituent parts.
+#'
+#' @param inner_subtree a valid inner_subtree
+#' @param outer_subtree a valid outer_Subtree
+#'
+#' @return either representative sample from the left or right subtree
+#' @export
+#'
+#' @examples
+sample_new_representative_uniformly <- function(inner_subtree, outer_subtree) {
+
+  new_z_rep <- inner_subtree$z_rep
+
+  log_w_old <- inner_subtree$log_w
+  log_w_new <- outer_subtree$log_w
+  log_w_total <- log(exp(log_w_old) + exp(log_w_new))
+
+  # if the new tree has greater weight then sample it with prob. 1
+  # otherwise sample with a prob. proportional the respect tree weights
+  if (log_w_new >= log_w_total) {
+    new_z_rep <- outer_subtree$z_rep
+  } else {
+    # sample a bernoulli with prob. that depends on weight
+    # if TRUE then we take rep from outer_subtree else the rep remains the
+    # the rep from the old (inner) subtree
+    if (runif(1) <= exp(log_w_new - log_w_total)) {
+      new_z_rep <- outer_subtree$z_rep
+    }
+  }
+
+  new_z_rep
+}
+
+#' Take a uniform sample over the joined trajectory.
 #'
 #' If the outer tree has a bigger weight then we use it's representative sample
 #' with probability one.
@@ -309,7 +350,7 @@ join_tree_histories <- function(inner_subtree, outer_subtree, direction, nouturn
 #' @export
 #'
 #' @examples
-sample_new_representative <- function(inner_subtree, outer_subtree) {
+sample_new_representative_biasedly <- function(inner_subtree, outer_subtree) {
 
   new_z_rep <- inner_subtree$z_rep
 

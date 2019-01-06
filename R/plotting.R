@@ -1,3 +1,13 @@
+create_2D_potential_heatmap <- function(compute_U, xmin,xmax,ymin,ymax, dimensions) {
+  Uvec <- Vectorize(function(q1, q2) compute_U(c(q1,q2)))
+  expand.grid(q2 = seq(xmin,xmax,(xmax-xmin)/200), q1 = seq(ymin,ymax,(ymax-ymin)/200)) %>%
+    as_tibble %>%
+    mutate(U = Uvec(q1,q2)) %>%
+    ggplot(aes(q2,q1)) +
+    geom_raster(aes(fill = log(U+2))) +
+    scale_fill_gradientn(colours = c("white", "orange", "black"))
+}
+
 create_2d_funnel_plot <- function(xmin,xmax,ymin,ymax) {
 
   compute_U <- function(q1,q2) {
